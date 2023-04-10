@@ -1,69 +1,65 @@
-import { Room, Storage } from "~/liveblocks.config";
-import { createSignal, For, onCleanup, onMount } from "solid-js";
+import { useMutation, useStorage } from "~/liveblocks.config";
+import { createSignal, For, Show } from "solid-js";
 import styles from "./Canvas.module.css";
 import { randomId } from "~/components/utils/randomId";
 import { LiveList, LiveObject } from "@liveblocks/client";
 import StrokePath from "~/components/StrokePath";
 import DeleteButton from "~/components/DeleteButton";
 
-type Props = {
-  room: Room;
-  strokes: Storage["strokes"];
-};
-
-export default function Canvas(props: Props) {
+export default function Canvas() {
   const [currentStroke, setCurrentStroke] = createSignal("");
-  const [strokeIds, setStrokeIds] = createSignal<string[]>([
-    ...props.strokes.keys(),
-  ]);
+  const strokeIds = useStorage(storage => storage.strokes.keys())
 
-  function handlePointerDown(e: PointerEvent) {
-    (e.target as SVGElement).setPointerCapture(e.pointerId);
+  const createStroke = useMutation(({ storage }, e: PointerEvent) => {
+    const strokes = storage.get('strokes');
     const id = randomId();
-    props.strokes.set(
-      id,
+
+    strokes.set(id,
       new LiveObject({
         gradient: 3,
         points: new LiveList([[e.pageX, e.pageY, e.pressure]]),
-      })
-    );
+      }))
+
     setCurrentStroke(id);
+  });
+
+  const updateStroke = useMutation(({ storage }, e: PointerEvent) => {
+    const strokes = storage.get('strokes');
+    strokes.get(currentStroke())?.get("points")?.push([e.pageX, e.pageY, e.pressure])
+  })
+
+  const deleteStrokes = useMutation(({ storage }) => {
+    const strokes = storage.get('strokes');
+    const keys = strokes.keys()
+    for (const key of keys) {
+      strokes.delete(key);
+    }
+  })
+
+  function handlePointerDown(e: PointerEvent) {
+    (e.target as SVGElement).setPointerCapture(e.pointerId);
+
+    createStroke(e);
   }
 
   function handlePointerMove(e: PointerEvent) {
-    if (e.buttons !== 1) {
-      return;
-    }
-
+    if (e.buttons !== 1) return;
+    
     (e.target as SVGElement).setPointerCapture(e.pointerId);
-    props.strokes
-      ?.get(currentStroke())
-      ?.get("points")
-      .push([e.pageX, e.pageY, e.pressure]);
+
+    updateStroke(e);
   }
 
-  onMount(() => {
-    const unsubscribe = props.room.subscribe(
-      props.strokes,
-      (newStrokes: Storage["strokes"]) => {
-        setStrokeIds([...newStrokes.keys()]);
-      }
-    );
-
-    onCleanup(unsubscribe);
-  });
-
   function handleReset() {
-    props.room.batch(() => {
-      const keys = props.strokes.keys();
-      for (const key of keys) {
-        props.strokes.delete(key);
-      }
-    });
+    deleteStrokes()
   }
 
   return (
-    <>
+    <Show
+      keyed={false}
+      when={strokeIds()}
+      fallback={<div>loading...</div>}
+    >
       <svg
         class={styles.svg}
         onPointerDown={handlePointerDown}
@@ -76,15 +72,10 @@ export default function Canvas(props: Props) {
           </linearGradient>
         </defs>
         <For each={[...strokeIds()]}>
-          {(id) => {
-            const stroke = props.strokes.get(id);
-            return stroke ? (
-              <StrokePath room={props.room} stroke={stroke} />
-            ) : null;
-          }}
+          {(id) => <StrokePath strokeId={id} />}
         </For>
       </svg>
       <DeleteButton onClick={handleReset} />
-    </>
+    </Show>
   );
 }

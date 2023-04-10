@@ -12,6 +12,8 @@ import {
   Title,
 } from "solid-start";
 import "./root.css";
+import { RoomProvider } from "~/liveblocks.config";
+import { LiveMap } from "@liveblocks/client";
 
 export default function Root() {
   return (
@@ -24,9 +26,11 @@ export default function Root() {
       <Body>
         <Suspense>
           <ErrorBoundary>
-            <Routes>
-              <FileRoutes />
-            </Routes>
+            <RoomProvider id="solid-drawing" initialPresence={{}} initialStorage={{ strokes: new LiveMap() }}>
+              <Routes>
+                <FileRoutes />
+              </Routes>
+            </RoomProvider>
           </ErrorBoundary>
         </Suspense>
         <Scripts />

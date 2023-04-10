@@ -4,9 +4,10 @@ import {
   LiveMap,
   LiveObject,
 } from "@liveblocks/client";
+import { createRoomContext } from "solid-liveblocks";
 
 const client = createClient({
-  publicApiKey: import.meta.env.VITE_LIVEBLOCKS_PUBLIC_KEY,
+  publicApiKey: 'pk_dev_VsbeXXRs_Y8eQ0TYjjaJP-XN538LlLKHynwLaZTmgFtU7cgg6cd47OjJRkiTyUrf',
   throttle: 16,
 });
 
@@ -27,18 +28,4 @@ type Presence = {};
 type UserMeta = {};
 type RoomEvent = {};
 
-const enterRoomWithContext = client.enter<
-  Presence,
-  Storage,
-  UserMeta,
-  RoomEvent
->;
-
-export const enterRoom = (...args: Parameters<typeof enterRoomWithContext>) => {
-  return enterRoomWithContext(...args);
-};
-
-export const leaveRoom = (...args: Parameters<typeof client.leave>) =>
-  client.leave(...args);
-
-export type Room = ReturnType<typeof enterRoom>;
+export const { RoomProvider, useStorage, useMutation } = createRoomContext<Presence, Storage, UserMeta, RoomEvent>(client)
